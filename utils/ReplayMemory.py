@@ -1,5 +1,5 @@
-from numpy.random import random
 import numpy as np
+import random
 import torch
 
 class Memory:
@@ -17,21 +17,21 @@ class Memory:
         self.actions = []
         self.rewards = []
         self.newStates = []
-        self.newBestAction = []
+        self.newAction = []
         self.finals = []
 
-    def transform_to_tensor(mini_batch):
+    def transform_to_tensor(self, mini_batch):
         mini_batch_size = len(mini_batch)
-        next_observations_ar, observations_ar, next_actions_ar, actions_ar = np.zeros(
-            (mini_batch_size, policy_net.observation_size)), np.zeros(
-            (mini_batch_size, policy_net.observation_size)), np.zeros(
-            (mini_batch_size, policy_net.n_actions)), np.zeros((mini_batch_size, policy_net.n_actions))
+        next_observations_ar, observations_ar, next_actions_ar, actions_ar, next_actions_ar = np.zeros(
+            (mini_batch_size, len(mini_batch[0]["newState"]))), np.zeros(
+            (mini_batch_size,len(mini_batch[0]["newState"]))), np.zeros(
+            (mini_batch_size, 1)), np.zeros((mini_batch_size, 1)), np.zeros((mini_batch_size, 1))
 
         rewards_ar = np.zeros((mini_batch_size, 1))
 
         for i, b in enumerate(mini_batch):
             next_observations_ar[i] = b["newState"]
-            next_actions_ar[i] = b["newBestAction"]
+            next_actions_ar[i] = b["newAction"]
             actions_ar[i] = b["action"]
             observations_ar[i] = b["state"]
             rewards_ar[i] = b["reward"]
@@ -41,11 +41,12 @@ class Memory:
         actions = torch.Tensor(actions_ar)
         next_observations = torch.Tensor(next_observations_ar)
         next_actions = torch.Tensor(next_actions_ar)
+
         return {"rewards": rewards,
                 "observations": observations,
                 "actions": actions,
-                "next_observations" : next_observations,
-                "next_actions": next_actions }
+                "next_observations": next_observations,
+                "next_actions": next_actions}
 
     def getMiniBatch(self, size):
 
@@ -53,8 +54,8 @@ class Memory:
         miniBatch = []
         for index in indices:
             miniBatch.append({'state': self.states[index], 'action': self.actions[index], 'reward': self.rewards[index],
-                              'newState': self.newStates[index], 'isFinal': self.finals[index]})
-
+                              'newState': self.newStates[index], 'newAction': self.newAction[index],
+                              'isFinal': self.finals[index]})
         return self.transform_to_tensor(miniBatch)
 
     def getCurrentSize(self):
@@ -64,7 +65,7 @@ class Memory:
         return {'state': self.states[index], 'action': self.actions[index], 'reward': self.rewards[index],
                 'newState': self.newStates[index],'isFinal': self.finals[index]}
 
-    def addMemory(self, state, action, reward, newState, isFinal):
+    def addMemory(self, state, action, reward, newState, newAction, isFinal):
         if (self.currentPosition >= self.size - 1):
             self.currentPosition = 0
         if (len(self.states) > self.size):
@@ -72,12 +73,16 @@ class Memory:
             self.actions[self.currentPosition] = action
             self.rewards[self.currentPosition] = reward
             self.newStates[self.currentPosition] = newState
+            self.newAction[self.currentPosition] = newAction
+
             self.finals[self.currentPosition] = isFinal
         else:
             self.states.append(state)
             self.actions.append(action)
             self.rewards.append(reward)
             self.newStates.append(newState)
+            self.newAction.append(newAction)
+
             self.finals.append(isFinal)
 
 
@@ -89,5 +94,7 @@ class Memory:
         self.actions = []
         self.rewards = []
         self.newStates = []
+        self.newAction = []
+
         self.finals = []
 
