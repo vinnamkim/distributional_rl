@@ -29,6 +29,6 @@ if __name__ == '__main__':
     env.seed(1)
     torch.manual_seed(1)
     np.random.seed(1)
-    experiment = Experiment(env, args)
+    experiment = Experiment(env, args, device)
     experiment.run()
     env.close()
