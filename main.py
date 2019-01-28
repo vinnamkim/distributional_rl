@@ -16,8 +16,9 @@ args["tau"] = 0.01
 
 
 use_cuda = True
-if __name__ == '__main__':
 
+if __name__ == '__main__':
+    print(torch.cuda.is_available())
     if use_cuda == True:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
