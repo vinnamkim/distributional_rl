@@ -62,22 +62,34 @@ class Distrib_learner():
 
     def learn(self, experiences, gamma):
         states, actions, rewards, next_states, dones = experiences
-        z_dist = torch.Tensor(np.array([[self.Vmin + i*self.delta_z for i in range(self.N)]]*self.BATCH_SIZE)).to(device)
+        z_dist = torch.from_numpy(np.array([[self.Vmin + i*self.delta_z for i in range(self.N)]]*self.BATCH_SIZE)).to(device)
         z_dist = torch.unsqueeze(z_dist, 1)
 
-        Q_dist_prediction = self.qnetwork_local(states).detach()
+        Q_dist_prediction = self.qnetwork_local(states)
 
         Q_dist_target = self.qnetwork_target(next_states).detach()
         Q_dist_target = Q_dist_target.view(-1, self.N, self.action_size)
 
         Q_target = torch.matmul(z_dist, Q_dist_target).squeeze(1)
         a_star = torch.argmax(Q_target, dim=1)
+        Q_dist_star = Q_dist_target[:,a_star]
 
-        m = np.zeros(self.N)
+        m = torch.zeros(self.BATCH_SIZE,self.N).to(device)
         for j in range(self.N):
-            T_zj = torch.clamp(rewards + self.GAMMA * Q_dist_target[j], min = self.Vmin, max = self.Vmax)
-
-        loss = F.mse_loss(Q_expected, Q_targets)
+            T_zj = torch.clamp(rewards + self.GAMMA * (self.Vmin + j*self.delta_z), min = self.Vmin, max = self.Vmax)
+            bj = (T_zj - self.Vmin)/self.delta_z
+            l = bj.floor()
+            u = bj.ceil()
+            range_batch = torch.arange(self.BATCH_SIZE).unsqueeze(1)
+            indices_l = torch.cat(range_batch,l,1)
+            indice_list_l = list(indices_l.numpy())
+            indices_u = torch.cat(range_batch,u,1)
+            indice_list_u = list(indices_u.numpy())
+            m[indice_list_l] = m[indice_list_l] + Q_dist_star[j]*(u-bj)
+            m[indice_list_u] = m[indice_list_u] + Q_dist_star[j]*(l-bj)
+        loss = 0
+        for i in range(self.BATCH_SIZE):
+            loss = - torch.matmul(m[i], Q_dist_prediction[self.N * actions[i]])
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
