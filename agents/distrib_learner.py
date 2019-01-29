@@ -63,7 +63,7 @@ class Distrib_learner():
     def learn(self, experiences, gamma):
         states, actions, rewards, next_states, dones = experiences
         z_dist = torch.from_numpy(np.array([[self.Vmin + i*self.delta_z for i in range(self.N)]]*self.BATCH_SIZE)).to(device)
-        z_dist = torch.unsqueeze(z_dist, 1)
+        z_dist = torch.unsqueeze(z_dist, 1).float()
 
         Q_dist_prediction = self.qnetwork_local(states)
 
@@ -80,11 +80,16 @@ class Distrib_learner():
             bj = (T_zj - self.Vmin)/self.delta_z
             l = bj.floor()
             u = bj.ceil()
-            range_batch = torch.arange(self.BATCH_SIZE).unsqueeze(1)
-            indices_l = torch.cat(range_batch,l,1)
-            indice_list_l = list(indices_l.numpy())
-            indices_u = torch.cat(range_batch,u,1)
-            indice_list_u = list(indices_u.numpy())
+            range_batch = torch.arange(self.BATCH_SIZE,out=torch.FloatTensor()).unsqueeze(1).to(device)
+            indices_l = torch.cat((range_batch,l),dim=1).long()
+            indice_list_l = tuple(indices_l.cpu().data.numpy().tolist())
+
+            indices_u = torch.cat((range_batch,u),dim=1)
+            indice_list_u = indices_u.cpu().data.numpy().tolist()
+            print(indice_list_l)
+            print(m.size())
+            print(indice_list_l[0])
+            print(Q_dist_star[j]*(u-bj))
             m[indice_list_l] = m[indice_list_l] + Q_dist_star[j]*(u-bj)
             m[indice_list_u] = m[indice_list_u] + Q_dist_star[j]*(l-bj)
         loss = 0
