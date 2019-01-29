@@ -65,7 +65,7 @@ class Distrib_learner():
         z_dist = torch.from_numpy(np.array([[self.Vmin + i*self.delta_z for i in range(self.N)]]*self.BATCH_SIZE)).to(device)
         z_dist = torch.unsqueeze(z_dist, 1).float()
 
-        Q_dist_prediction = self.qnetwork_local(states)
+        Q_dist_prediction = self.qnetwork_local(states).view(-1, self.N, self.action_size)[self.range_batch,:,actions.squeeze(1)]
 
         Q_dist_target = self.qnetwork_target(next_states).detach()
         Q_dist_target = Q_dist_target.view(-1, self.N, self.action_size)
@@ -74,26 +74,30 @@ class Distrib_learner():
         a_star = torch.argmax(Q_target, dim=1)
         Q_dist_star = Q_dist_target[self.range_batch,:,a_star]
 
-        m = torch.ones(self.BATCH_SIZE,self.N).to(device)
+        m = torch.zeros(self.BATCH_SIZE,self.N).to(device)
         for j in range(self.N):
             T_zj = torch.clamp(rewards + self.GAMMA * (self.Vmin + j*self.delta_z), min = self.Vmin, max = self.Vmax)
             bj = (T_zj - self.Vmin)/self.delta_z
             l = bj.floor().long()
             u = bj.ceil().long()
-            mask_l = torch.zeros(m.size()).to(device)
-            mask_l.scatter_(1, l, 1)
-            mask_u = torch.zeros(m.size()).to(device)
-            mask_u.scatter_(1, u, 1)
+            #mask_l = torch.zeros(m.size()).to(device)
+            #mask_l.scatter_(1, l, 1)
+            #mask_u = torch.zeros(m.size()).to(device)
+            #mask_u.scatter_(1, u, 1)
 
-            mask_Q = torch.zeros(m.size()).to(device)
-            mask_Q.scatter_(1, l, Q_dist_star[:,j].unsqueeze(1))
-
-            m += mask_Q*(u.float()-bj.float())
-            m += mask_Q*(l.float()-bj.float())
+            mask_Q_l = torch.zeros(m.size()).to(device)
+            mask_Q_l.scatter_(1, l, Q_dist_star[:,j].unsqueeze(1))
+            mask_Q_u = torch.zeros(m.size()).to(device)
+            mask_Q_u.scatter_(1, u, Q_dist_star[:,j].unsqueeze(1))
+            m += mask_Q_l*(u.float()-bj.float())
+            print(mask_Q_l)
+            print(m)
+            m += mask_Q_u*(l.float()-bj.float())
             print(m)
             #m[indice_list_u] = m[indice_list_u] + Q_dist_star[j]*(l-bj)
             #m[indice_list_l] = m[indice_list_l] + Q_dist_star[j]*(l-bj)
         log_Q_dist_prediction = torch.log(Q_dist_prediction)
+
         loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1)
         self.optimizer.zero_grad()
         loss.backward()
