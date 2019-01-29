@@ -31,7 +31,7 @@ class Distrib_learner():
         self.Vmin = Vmin
         self.Vmax = Vmax
         self.delta_z = (Vmax-Vmin)/(N-1)
-
+        self.range_batch = torch.arange(self.BATCH_SIZE).long().to(device)
         self.qnetwork_local = QNetwork(state_size, action_size * self.N, hiddens, seed).to(device)
         self.qnetwork_target = QNetwork(state_size, action_size * self.N, hiddens, seed).to(device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=self.LR)
@@ -72,31 +72,24 @@ class Distrib_learner():
 
         Q_target = torch.matmul(z_dist, Q_dist_target).squeeze(1)
         a_star = torch.argmax(Q_target, dim=1)
-        Q_dist_star = Q_dist_target[:,a_star]
+        Q_dist_star = Q_dist_target[self.range_batch,:,a_star]
 
-        m = torch.zeros(self.BATCH_SIZE,self.N).to(device)
+        m = torch.ones(self.BATCH_SIZE,self.N).to(device)
         for j in range(self.N):
             T_zj = torch.clamp(rewards + self.GAMMA * (self.Vmin + j*self.delta_z), min = self.Vmin, max = self.Vmax)
             bj = (T_zj - self.Vmin)/self.delta_z
             l = bj.floor().long()
             u = bj.ceil().long()
-            range_batch = torch.arange(self.BATCH_SIZE).unsqueeze(1).to(device)
-            indices_l = torch.cat((range_batch,l),dim=1)
-            indice_list_l = indices_l.cpu().data.numpy().tolist()
-
-            indices_u = torch.cat((range_batch,u),dim=1)
-            indice_list_u = indices_u.cpu().data.numpy().tolist()
-            print(indice_list_l)
-            print(m.size())
-            print(indice_list_l[0])
-            print(Q_dist_star[j]*(u-bj))
-            values_update = m.gather(1, l.view(-1,1)).size()
-            values_update +=  Q_dist_star[j]*((u-bj).float())
+            mask_l = torch.zeros(m.size())
+            mask_l.scatter_(1, l, 1)
+            mask_Q = torch.zeros(m.size())
+            mask_Q.scatter_(1, l, Q_dist_star[:,j].unsqueeze(1))
+            m = mask_l*m + mask_Q*(l.float()-bj.float())
+            print(m)
             #m[indice_list_u] = m[indice_list_u] + Q_dist_star[j]*(l-bj)
             #m[indice_list_l] = m[indice_list_l] + Q_dist_star[j]*(l-bj)
-        loss = 0
-        for i in range(self.BATCH_SIZE):
-            loss = - torch.matmul(m[i], Q_dist_prediction[self.N * actions[i]])
+        log_Q_dist_prediction = torch.log(Q_dist_prediction)
+        loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
