@@ -23,25 +23,25 @@ args["BUFFER_SIZE"] = int(500)  # replay buffer size
 args["BATCH_SIZE"] = 32  # minibatch size
 args["GAMMA"] = 0.95  # discount factor
 args["TAU"] = 1e-3  # for soft update of target parameters
-args["LR"] = 3e-4  # learning rate
+args["LR"] = 1e-3  # learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
 
 
 # In[31]:
-N = 10
+N = 20
 Vmin = 0
 Vmax = 200
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+seed = 1
 env = gym.make('CartPole-v1')
-env.seed(0)
-agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=0, hiddens = [24,24], args = args)
+env.seed(seed)
+agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=seed, hiddens = [100, 100], args = args)
 
 
 # In[32]:
 
 
-def dqn(n_episodes=10000, max_t=1000, eps_start=0.1, eps_end=0.02, eps_decay=0.995):
+def distributional_dqn(n_episodes=100000, max_t=1000, eps_start=1, eps_end=0.05, eps_decay=0.999):
 
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
@@ -63,20 +63,25 @@ def dqn(n_episodes=10000, max_t=1000, eps_start=0.1, eps_end=0.02, eps_decay=0.9
         eps = max(eps_end, eps_decay*eps) # decrease epsilon
         
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
-        if i_episode % 100 == 0:
-            state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+
+        if i_episode % 1000 == 0 or i_episode == 1:
+            state = torch.from_numpy(np.array([0,0,0,0])).float().unsqueeze(0).to(device)
             q_distrib = agent.qnetwork_local.forward(state).detach()
-            q_distrib = q_distrib.view(-1, N, env.action_space.n)[0]
+            q_distrib = q_distrib.reshape(-1,  env.action_space.n, N)[0]
+
             delta_z = (Vmax - Vmin) / (N - 1)
-            y = np.arange(Vmin, Vmax + delta_z,delta_z )
-
+            y = np.arange(Vmin, Vmax + delta_z, delta_z)
+            z = []
             for i in range(env.action_space.n):
-                z = q_distrib[:,i].cpu().data.numpy()
-                print(z.shape)
-                print(y.shape)
-                plt.bar(y, z, width = 10)
-
+                z.append(q_distrib[i,:].cpu().data.numpy())
+            plt.bar(y, z[0], width = 2)
+            plt.bar(y, z[1], width = 2)
+            plt.title("distribution at step:{}".format(i_episode))
             plt.show()
+
+        if i_episode % 100 == 0:
+
+
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
         if np.mean(scores_window)>=200.0:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
@@ -84,7 +89,7 @@ def dqn(n_episodes=10000, max_t=1000, eps_start=0.1, eps_end=0.02, eps_decay=0.9
             break
     return scores
 
-scores = dqn()
+scores = distributional_dqn()
 
 # plot the scores
 fig = plt.figure()

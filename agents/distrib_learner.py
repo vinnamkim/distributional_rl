@@ -54,14 +54,13 @@ class Distrib_learner():
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
         with torch.no_grad():
-
             z_dist = torch.from_numpy(
                 np.array([[self.Vmin + i * self.delta_z for i in range(self.N)]])).to(device)
-            z_dist = torch.unsqueeze(z_dist, 1).float()
+            z_dist = torch.unsqueeze(z_dist, 2).float()
             Q_dist = self.qnetwork_local(state).detach()
-            Q_dist = Q_dist.view(-1, self.N, self.action_size)
-            Q_target = torch.matmul(z_dist, Q_dist).squeeze(1)
-            a_star = torch.argmax(Q_target, dim=1)
+            Q_dist = Q_dist.reshape(-1,  self.action_size, self.N)
+            Q_target = torch.matmul(Q_dist, z_dist).squeeze(1)
+            a_star = torch.argmax(Q_target, dim=1)[0]
 
         self.qnetwork_local.train()
 
@@ -73,16 +72,16 @@ class Distrib_learner():
     def learn(self, experiences, gamma):
         states, actions, rewards, next_states, dones = experiences
         z_dist = torch.from_numpy(np.array([[self.Vmin + i*self.delta_z for i in range(self.N)]]*self.BATCH_SIZE)).to(device)
-        z_dist = torch.unsqueeze(z_dist, 1).float()
+        z_dist = torch.unsqueeze(z_dist, 2).float()
 
-        Q_dist_prediction = self.qnetwork_local(states).view(-1, self.N, self.action_size)[self.range_batch, :, actions.squeeze(1)]
+        Q_dist_prediction = self.qnetwork_local(states).reshape(-1, self.action_size, self.N)[self.range_batch, actions.squeeze(1), :]
 
         Q_dist_target = self.qnetwork_target(next_states).detach()
-        Q_dist_target = Q_dist_target.view(-1, self.N, self.action_size)
+        Q_dist_target = Q_dist_target.reshape(-1, self.action_size, self.N)
 
-        Q_target = torch.matmul(z_dist, Q_dist_target).squeeze(1)
+        Q_target = torch.matmul(Q_dist_target, z_dist).squeeze(1)
         a_star = torch.argmax(Q_target, dim=1)
-        Q_dist_star = Q_dist_target[self.range_batch,:,a_star]
+        Q_dist_star = Q_dist_target[self.range_batch, a_star.squeeze(1),:]
 
         m = torch.zeros(self.BATCH_SIZE,self.N).to(device)
         for j in range(self.N):
@@ -91,26 +90,17 @@ class Distrib_learner():
             l = bj.floor().long()
             u = bj.ceil().long()
 
-            mask_l = torch.zeros(m.size()).to(device)
-            mask_l.scatter_(1, l, 1)
-            mask_u = torch.zeros(m.size()).to(device)
-            mask_u.scatter_(1, u, 1)
-
-
             mask_Q_l = torch.zeros(m.size()).to(device)
             mask_Q_l.scatter_(1, l, Q_dist_star[:,j].unsqueeze(1))
             mask_Q_u = torch.zeros(m.size()).to(device)
-            mask_Q_u.scatter_(1, u, Q_dist_star[:, j].unsqueeze(1))
+            mask_Q_u.scatter_(1, u, Q_dist_star[:,j].unsqueeze(1))
 
             m += mask_Q_l*(u.float()-bj.float())
             m += mask_Q_u*(-l.float()+bj.float())
 
-            #m[indice_list_u] = m[indice_list_u] + Q_dist_star[j]*(l-bj)
-            #m[indice_list_l] = m[indice_list_l] + Q_dist_star[j]*(l-bj)
-
         log_Q_dist_prediction = torch.log(Q_dist_prediction)
 
-        loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1)
+        loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1) / self.BATCH_SIZE
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

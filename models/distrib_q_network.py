@@ -18,7 +18,7 @@ class Distrib_QNetwork(nn.Module):
                 setattr(self, "fc{}".format(i), nn.Linear(self.hiddens[i-1], self.hiddens[i]))
 
         for i in range(action_size):
-            setattr(self, "l_action{}".format(i), nn.Linear(hiddens[-1], self.N))
+            setattr(self, "l_action{}".format(i), nn.Linear(self.hiddens[-1], self.N))
 
     def forward(self, state):
         """Build a network that maps state -> action values."""
@@ -31,5 +31,6 @@ class Distrib_QNetwork(nn.Module):
                 output = F.softmax(getattr(self, "l_action{}".format(i))(x))
             else:
                 output = torch.cat([output,F.softmax(getattr(self, "l_action{}".format(i))(x))], 1)
+
         return output
 
