@@ -1,6 +1,5 @@
 import itertools
-import gym
-from agents.NN import NN
+from models.q_network import NN
 import torch
 from torch.optim import Adam
 import numpy as np
@@ -17,10 +16,11 @@ from utils.utils import smooth_update
 
 
 
-class Experiment:
-    def __init__(self, env, args):
+class Experiment():
+    def __init__(self, env, args, device):
         self.env = env
         self.args = args
+        self.device = device
 
     def _build_inputs(self, actions_range, state):
         inputs = []
@@ -33,7 +33,7 @@ class Experiment:
     def run(self):
         test = False
         mem = Memory(size = 1000)
-        Q_network = NN()
+        Q_network = NN().to(self.device)
         target_network = NN()
         target_network.load_state_dict(Q_network.state_dict())
         optimizer = Adam(list(Q_network.parameters()))
