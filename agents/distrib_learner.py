@@ -90,10 +90,12 @@ class Distrib_learner():
             bj = (T_zj - self.Vmin)/self.delta_z
             l = bj.floor().long()
             u = bj.ceil().long()
+
             mask_l = torch.zeros(m.size()).to(device)
             mask_l.scatter_(1, l, 1)
             mask_u = torch.zeros(m.size()).to(device)
             mask_u.scatter_(1, u, 1)
+
 
             mask_Q_l = torch.zeros(m.size()).to(device)
             mask_Q_l.scatter_(1, l, Q_dist_star[:,j].unsqueeze(1))
@@ -102,10 +104,12 @@ class Distrib_learner():
 
             m += mask_Q_l*(u.float()-bj.float())
             m += mask_Q_u*(-l.float()+bj.float())
+
             #m[indice_list_u] = m[indice_list_u] + Q_dist_star[j]*(l-bj)
             #m[indice_list_l] = m[indice_list_l] + Q_dist_star[j]*(l-bj)
 
         log_Q_dist_prediction = torch.log(Q_dist_prediction)
+
         loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1)
         self.optimizer.zero_grad()
         loss.backward()
