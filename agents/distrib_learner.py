@@ -78,11 +78,11 @@ class Distrib_learner():
         for j in range(self.N):
             T_zj = torch.clamp(rewards + self.GAMMA * (self.Vmin + j*self.delta_z), min = self.Vmin, max = self.Vmax)
             bj = (T_zj - self.Vmin)/self.delta_z
-            l = bj.floor()
-            u = bj.ceil()
-            range_batch = torch.arange(self.BATCH_SIZE,out=torch.FloatTensor()).unsqueeze(1).to(device)
-            indices_l = torch.cat((range_batch,l),dim=1).long()
-            indice_list_l = tuple(indices_l.cpu().data.numpy().tolist())
+            l = bj.floor().long()
+            u = bj.ceil().long()
+            range_batch = torch.arange(self.BATCH_SIZE).unsqueeze(1).to(device)
+            indices_l = torch.cat((range_batch,l),dim=1)
+            indice_list_l = indices_l.cpu().data.numpy().tolist()
 
             indices_u = torch.cat((range_batch,u),dim=1)
             indice_list_u = indices_u.cpu().data.numpy().tolist()
@@ -90,8 +90,10 @@ class Distrib_learner():
             print(m.size())
             print(indice_list_l[0])
             print(Q_dist_star[j]*(u-bj))
-            m[indice_list_l] = m[indice_list_l] + Q_dist_star[j]*(u-bj)
-            m[indice_list_u] = m[indice_list_u] + Q_dist_star[j]*(l-bj)
+            values_update = m.gather(1, l.view(-1,1)).size()
+            values_update +=  Q_dist_star[j]*((u-bj).float())
+            #m[indice_list_u] = m[indice_list_u] + Q_dist_star[j]*(l-bj)
+            #m[indice_list_l] = m[indice_list_l] + Q_dist_star[j]*(l-bj)
         loss = 0
         for i in range(self.BATCH_SIZE):
             loss = - torch.matmul(m[i], Q_dist_prediction[self.N * actions[i]])
