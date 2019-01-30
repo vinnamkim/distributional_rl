@@ -28,11 +28,11 @@ args["UPDATE_EVERY"] = 4  # how often to update the network
 
 
 # In[31]:
-N = 20
+N = 51
 Vmin = 0
 Vmax = 200
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-seed = 1
+seed = 0
 env = gym.make('CartPole-v1')
 env.seed(seed)
 agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=seed, hiddens = [100, 100], args = args)
@@ -41,7 +41,7 @@ agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_sp
 # In[32]:
 
 
-def distributional_dqn(n_episodes=100000, max_t=1000, eps_start=1, eps_end=0.05, eps_decay=0.999):
+def distributional_dqn(n_episodes=30000, max_t=1000, eps_start=0.5, eps_end=0.05, eps_decay=0.99):
 
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
@@ -64,7 +64,7 @@ def distributional_dqn(n_episodes=100000, max_t=1000, eps_start=1, eps_end=0.05,
         
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
 
-        if i_episode % 1000 == 0 or i_episode == 1:
+        if i_episode % 30000 == 0 or i_episode == 1:
             state = torch.from_numpy(np.array([0,0,0,0])).float().unsqueeze(0).to(device)
             q_distrib = agent.qnetwork_local.forward(state).detach()
             q_distrib = q_distrib.reshape(-1,  env.action_space.n, N)[0]
@@ -82,7 +82,7 @@ def distributional_dqn(n_episodes=100000, max_t=1000, eps_start=1, eps_end=0.05,
         if i_episode % 100 == 0:
 
 
-            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
+            print('\rEpisode {}\tAverage Score: {:.2f}, with eps={}'.format(i_episode, np.mean(scores_window), eps))
         if np.mean(scores_window)>=200.0:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
             torch.save(agent.qnetwork_local.state_dict(), 'models/checkpoints/checkpoint.pth')
