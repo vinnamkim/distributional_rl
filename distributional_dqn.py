@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from agents.q_learner import Q_learner
 from agents.distrib_learner import Distrib_learner
 import matplotlib.pyplot as plt
-
+from utils.utils import Normalizer
 plt.rcdefaults()
 
 args = dict()
@@ -21,31 +21,42 @@ args["BUFFER_SIZE"] = int(500)  # replay buffer size
 args["BATCH_SIZE"] = 32  # minibatch size
 args["GAMMA"] = 0.95  # discount factor
 args["TAU"] = 1e-3  # for soft update of target parameters
-args["LR"] = 1e-3  # learning rate
+args["LR"] = 5e-4  # learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
 
 N = 51
-Vmin = 0
+Vmin = 10
 Vmax = 200
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 seed = 0
 env = gym.make('CartPole-v1')
 env.seed(seed)
-agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=seed, hiddens = [100, 100], args = args)
+agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=seed, hiddens = [300,200], args = args)
+normalizer = Normalizer(env.observation_space.shape[0])
 
-def run_test():
+def normalize(normalizer, state):
+    #normalizer.observe(state)
+    return state#normalizer.normalize(state)
+
+
+def run_test(max_t):
     score_test = 0
+    env.reset()
     state = env.reset()
+    state = normalize(normalizer, state)
+
     for t in range(max_t):
         action = agent.act(state, 0)
         next_state, reward, done, _ = env.step(action)
+        next_state = normalize(normalizer, next_state)
+
         state = next_state
         score_test += reward
         if done:
             break
     return score_test
 
-def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_start=0.5, eps_end=0.05, eps_decay=0.999):
+def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_start=1, eps_end=0.01, eps_decay=0.99):
     test = False
     scores = []                        # list containing scores from each episode
     scores_tests = []
@@ -59,6 +70,8 @@ def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_st
             test = False
 
         state = env.reset()
+        state = normalize(normalizer, state)
+
         score = 0
 
         for t in range(max_t):
@@ -67,6 +80,7 @@ def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_st
             else:
                 action = agent.act(state, eps)
             next_state, reward, done, _ = env.step(action)
+            next_state = normalize(normalizer, next_state)
             agent.step(state, action, reward, next_state, done)
 
             state = next_state
@@ -75,7 +89,7 @@ def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_st
                 break
 
         if test:
-            score_test = run_test()
+            score_test = run_test(max_t)
             scores_tests.append(score_test)
 
         scores_window.append(score)       # save most recent score
@@ -85,7 +99,7 @@ def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_st
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
         if test:
             print(scores_tests)
-        if i_episode % 30000 == 0 or i_episode == 1:
+        if i_episode % 300 == 0 or i_episode == 1:
             state = torch.from_numpy(np.array([0,0,0,0])).float().unsqueeze(0).to(device)
             q_distrib = agent.qnetwork_local.forward(state).detach()
             q_distrib = q_distrib.reshape(-1,  env.action_space.n, N)[0]
@@ -95,8 +109,8 @@ def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_st
             z = []
             for i in range(env.action_space.n):
                 z.append(q_distrib[i,:].cpu().data.numpy())
-            plt.bar(y, z[0], width = 2)
-            plt.bar(y, z[1], width = 2)
+            plt.bar(y, z[0])#, width = 1)
+            plt.bar(y, z[1])#, width = 1)
             plt.title("distribution at step:{}".format(i_episode))
             plt.show()
 
