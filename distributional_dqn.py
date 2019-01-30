@@ -19,19 +19,19 @@ plt.rcdefaults()
 args = dict()
 args["BUFFER_SIZE"] = int(500)  # replay buffer size
 args["BATCH_SIZE"] = 32  # minibatch size
-args["GAMMA"] = 0.95  # discount factor
-args["TAU"] = 1e-3  # for soft update of target parameters
-args["LR"] = 5e-4  # learning rate
+args["GAMMA"] = 0.99  # discount factor
+args["TAU"] = 1e-1  # for soft update of target parameters #1
+args["LR"] = 1e-1# learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
-
-N = 51
-Vmin = 10
+args["UPDATE_TARGET"] = 200
+N = 100
+Vmin = -200
 Vmax = 200
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 seed = 0
-env = gym.make('CartPole-v1')
+env = gym.make('CartPole-v0')
 env.seed(seed)
-agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=seed, hiddens = [300,200], args = args)
+agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=seed, hiddens = [128,128], args = args)
 normalizer = Normalizer(env.observation_space.shape[0])
 
 def normalize(normalizer, state):
@@ -56,7 +56,7 @@ def run_test(max_t):
             break
     return score_test
 
-def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_start=1, eps_end=0.01, eps_decay=0.99):
+def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_start=1.0, eps_end=0.1, eps_decay=0.99):
     test = False
     scores = []                        # list containing scores from each episode
     scores_tests = []
@@ -99,23 +99,25 @@ def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_st
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
         if test:
             print(scores_tests)
-        if i_episode % 300 == 0 or i_episode == 1:
-            state = torch.from_numpy(np.array([0,0,0,0])).float().unsqueeze(0).to(device)
-            q_distrib = agent.qnetwork_local.forward(state).detach()
-            q_distrib = q_distrib.reshape(-1,  env.action_space.n, N)[0]
+
+        if i_episode % 30 == 0 or i_episode == 1:
+            state = torch.from_numpy(np.array([0, 0, 0, 0])).float().unsqueeze(0).to(device)
+            q_distrib, _ = agent.qnetwork_local.forward(state)
+            q_distrib =  q_distrib.detach()
+            q_distrib = q_distrib.reshape(-1, env.action_space.n, N)[0]
 
             delta_z = (Vmax - Vmin) / (N - 1)
             y = np.arange(Vmin, Vmax + delta_z, delta_z)
             z = []
             for i in range(env.action_space.n):
-                z.append(q_distrib[i,:].cpu().data.numpy())
-            plt.bar(y, z[0])#, width = 1)
-            plt.bar(y, z[1])#, width = 1)
+                z.append(q_distrib[i, :].cpu().data.numpy())
+            plt.bar(y, z[0], width=2)
+            plt.bar(y, z[1], width=2)
             plt.title("distribution at step:{}".format(i_episode))
             plt.show()
 
         if i_episode % 100 == 0:
-            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
+            print('\rEpisode {}\tAverage Score: {:.2f}, epsilon:{}'.format(i_episode, np.mean(scores_window), eps))
         if np.mean(scores_window)>=200.0:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
             torch.save(agent.qnetwork_local.state_dict(), 'models/checkpoints/checkpoint.pth')

@@ -29,8 +29,10 @@ class Distrib_QNetwork(nn.Module):
         for i in range(self.action_size):
             if i == 0:
                 output = F.softmax(getattr(self, "l_action{}".format(i))(x))
+                log_output = F.log_softmax(getattr(self, "l_action{}".format(i))(x))
             else:
                 output = torch.cat([output,F.softmax(getattr(self, "l_action{}".format(i))(x))], 1)
+                log_output = torch.cat([log_output,F.log_softmax(getattr(self, "l_action{}".format(i))(x))], 1)
 
-        return output
+        return output, log_output
 

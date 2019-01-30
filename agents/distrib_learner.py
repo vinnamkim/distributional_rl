@@ -31,6 +31,8 @@ class Distrib_learner():
         self.BATCH_SIZE = args["BATCH_SIZE"]
         self.GAMMA = args["GAMMA"]
         self.UPDATE_EVERY = args["UPDATE_EVERY"]
+        self.UPDATE_TARGET = args["UPDATE_TARGET"]
+
         self.LR = args["LR"]
         self.TAU = args["TAU"]
         self.N = N
@@ -44,10 +46,13 @@ class Distrib_learner():
 
         self.memory = ReplayBuffer(action_size, self.BUFFER_SIZE, self.BATCH_SIZE, seed)
         self.t_step = 0
+        #self.t_tot = 0
 
     def step(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward, next_state, done)
+        #self.t_tot+=1
         self.t_step = (self.t_step + 1) % self.UPDATE_EVERY
+        #self.update_target = (self.t_tot + 1) % self.UPDATE_TARGET
         if self.t_step == 0:
             if len(self.memory) > self.BATCH_SIZE:
                 experiences = self.memory.sample()
@@ -61,7 +66,8 @@ class Distrib_learner():
             z_dist = torch.from_numpy(
                 np.array([[self.Vmin + i * self.delta_z for i in range(self.N)]])).to(device)
             z_dist = torch.unsqueeze(z_dist, 2).float()
-            Q_dist = self.qnetwork_local(state).detach()
+            Q_dist, _  = self.qnetwork_local(state)#
+            Q_dist = Q_dist.detach()
             Q_dist = Q_dist.reshape(-1,  self.action_size, self.N)
             Q_target = torch.matmul(Q_dist, z_dist).squeeze(1)
             a_star = torch.argmax(Q_target, dim=1)[0]
@@ -79,9 +85,11 @@ class Distrib_learner():
         z_dist = torch.from_numpy(np.array([[self.Vmin + i*self.delta_z for i in range(self.N)]]*self.BATCH_SIZE)).to(device)
         z_dist = torch.unsqueeze(z_dist, 2).float()
 
-        Q_dist_prediction = self.qnetwork_local(states).reshape(-1, self.action_size, self.N)[self.range_batch, actions.squeeze(1), :]
+        _, log_Q_dist_prediction = self.qnetwork_local(states)
+        log_Q_dist_prediction = log_Q_dist_prediction.reshape(-1, self.action_size, self.N)[self.range_batch, actions.squeeze(1), :]
 
-        Q_dist_target = self.qnetwork_target(next_states).detach()
+        Q_dist_target, _ = self.qnetwork_target(next_states)
+        Q_dist_target = Q_dist_target.detach()
         Q_dist_target = Q_dist_target.reshape(-1, self.action_size, self.N)
 
         Q_target = torch.matmul(Q_dist_target, z_dist).squeeze(1)
@@ -90,7 +98,7 @@ class Distrib_learner():
 
         m = torch.zeros(self.BATCH_SIZE,self.N).to(device)
         for j in range(self.N):
-            T_zj = torch.clamp(rewards + self.GAMMA * (self.Vmin + j*self.delta_z), min = self.Vmin, max = self.Vmax)
+            T_zj = torch.clamp(rewards + self.GAMMA * (1-dones) * (self.Vmin + j*self.delta_z), min = self.Vmin, max = self.Vmax)
             bj = (T_zj - self.Vmin)/self.delta_z
             l = bj.floor().long()
             u = bj.ceil().long()
@@ -103,13 +111,14 @@ class Distrib_learner():
             m += mask_Q_l*(u.float()-bj.float())
             m += mask_Q_u*(-l.float()+bj.float())
 
-        log_Q_dist_prediction = torch.log(Q_dist_prediction)
-
         loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1) / self.BATCH_SIZE
-
         self.optimizer.zero_grad()
         loss.backward()
+        #torch.nn.utils.clip_grad_norm_(self.qnetwork_local.parameters(), 5)
+
         self.optimizer.step()
+        #if self.update_target == 0:
+        #    self.hard_update(self.qnetwork_local, self.qnetwork_target)
 
         self.soft_update(self.qnetwork_local, self.qnetwork_target, self.TAU)
 
@@ -117,3 +126,6 @@ class Distrib_learner():
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 
+    def hard_update(self, local_model, target_model):
+        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
+            target_param.data.copy_(local_param.data)
