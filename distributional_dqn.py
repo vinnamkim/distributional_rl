@@ -22,18 +22,18 @@ args = dict()
 args["BUFFER_SIZE"] = int(500)  # replay buffer size
 args["BATCH_SIZE"] = 32  # minibatch size
 args["GAMMA"] = 0.95  # discount factor
-args["TAU"] = 0.001  # for soft update of target parameters
-args["LR"] = 0.001  # learning rate
+args["TAU"] = 0.1  # for soft update of target parameters
+args["LR"] = 0.1  # learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
 
 
 # In[31]:
-N = 51
-Vmin = 0
-Vmax = 200
+N = 100
+Vmin = -50
+Vmax = 50
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 seed = 0
-env = gym.make('CartPole-v1')
+env = gym.make('CartPole-v0')
 env.seed(seed)
 agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=seed, hiddens = [100, 100], args = args)
 
@@ -41,7 +41,7 @@ agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_sp
 # In[32]:
 
 
-def distributional_dqn(n_episodes=30000, max_t=1000, eps_start=0.5, eps_end=0.005   , eps_decay=0.99):
+def distributional_dqn(n_episodes=5000, max_t=1000, eps_start=0.5, eps_end=0.01   , eps_decay=0.99):
 
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
@@ -57,11 +57,11 @@ def distributional_dqn(n_episodes=30000, max_t=1000, eps_start=0.5, eps_end=0.00
             state = next_state
             score += reward
             if done:
-                break 
+                break
         scores_window.append(score)       # save most recent score
         scores.append(score)              # save most recent score
         eps = max(eps_end, eps_decay*eps) # decrease epsilon
-        
+
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
 
         if i_episode % 30000 == 0 or i_episode == 1:
@@ -83,7 +83,7 @@ def distributional_dqn(n_episodes=30000, max_t=1000, eps_start=0.5, eps_end=0.00
 
 
             print('\rEpisode {}\tAverage Score: {:.2f}, with eps={}'.format(i_episode, np.mean(scores_window), eps))
-        if np.mean(scores_window)>=200.0:
+        if np.mean(scores_window)>=300.0:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
             torch.save(agent.qnetwork_local.state_dict(), 'models/checkpoints/checkpoint.pth')
             break
