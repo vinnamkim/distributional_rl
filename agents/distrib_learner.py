@@ -12,6 +12,10 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
+#To check graph
+#from torchviz import make_dot, make_dot_from_trace
+#dot = make_dot(loss, params = dict(self.qnetwork_local.named_parameters()))
+#dot.view()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -62,7 +66,8 @@ class Distrib_learner():
             Q_target = torch.matmul(Q_dist, z_dist).squeeze(1)
             a_star = torch.argmax(Q_target, dim=1)[0]
 
-        self.qnetwork_local.train()
+        if eps != 0:
+            self.qnetwork_local.train()
 
         if random.random() > eps:
             return a_star.cpu().data.numpy()[0]
@@ -101,11 +106,11 @@ class Distrib_learner():
         log_Q_dist_prediction = torch.log(Q_dist_prediction)
 
         loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1) / self.BATCH_SIZE
+
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        # ------------------- update target network ------------------- #
         self.soft_update(self.qnetwork_local, self.qnetwork_target, self.TAU)
 
     def soft_update(self, local_model, target_model, tau):

@@ -15,9 +15,6 @@ from agents.distrib_learner import Distrib_learner
 import matplotlib.pyplot as plt
 plt.rcdefaults()
 
-# In[30]:
-
-
 args = dict()
 args["BUFFER_SIZE"] = int(500)  # replay buffer size
 args["BATCH_SIZE"] = 32  # minibatch size
@@ -27,10 +24,6 @@ args["LR"] = 1e-3  # learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
 
 
-# In[31]:
-N = 15
-Vmin = 0
-Vmax = 100
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 seed = 0
 env = gym.make('CartPole-v1')
