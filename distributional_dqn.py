@@ -22,8 +22,8 @@ args = dict()
 args["BUFFER_SIZE"] = int(500)  # replay buffer size
 args["BATCH_SIZE"] = 32  # minibatch size
 args["GAMMA"] = 0.95  # discount factor
-args["TAU"] = 1e-3  # for soft update of target parameters
-args["LR"] = 1e-3  # learning rate
+args["TAU"] = 0.001  # for soft update of target parameters
+args["LR"] = 0.001  # learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
 
 
@@ -41,7 +41,7 @@ agent = Distrib_learner(N=N, Vmin=Vmin, Vmax=Vmax, state_size=env.observation_sp
 # In[32]:
 
 
-def distributional_dqn(n_episodes=30000, max_t=1000, eps_start=0.5, eps_end=0.05, eps_decay=0.99):
+def distributional_dqn(n_episodes=30000, max_t=1000, eps_start=0.5, eps_end=0.005   , eps_decay=0.99):
 
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
