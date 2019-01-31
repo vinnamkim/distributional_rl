@@ -17,11 +17,11 @@ from utils.utils import Normalizer
 plt.rcdefaults()
 
 args = dict()
-args["BUFFER_SIZE"] = int(500)  # replay buffer size
-args["BATCH_SIZE"] = 32  # minibatch size
+args["BUFFER_SIZE"] = int(5000)  # replay buffer size
+args["BATCH_SIZE"] = 50  # minibatch size
 args["GAMMA"] = 0.99  # discount factor
 args["TAU"] = 1e-1  # for soft update of target parameters #1
-args["LR"] = 1e-1# learning rate
+args["LR"] = 1e-3# learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
 args["UPDATE_TARGET"] = 200
 N = 100
@@ -56,7 +56,7 @@ def run_test(max_t):
             break
     return score_test
 
-def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_start=1.0, eps_end=0.1, eps_decay=0.99):
+def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_start=0.6, eps_end=0.01, eps_decay=0.99):
     test = False
     scores = []                        # list containing scores from each episode
     scores_tests = []
