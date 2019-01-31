@@ -108,7 +108,7 @@ class Distrib_learner():
             mask_Q_u = torch.zeros(m.size()).to(device)
             mask_Q_u.scatter_(1, u, Q_dist_star[:,j].unsqueeze(1))
 
-            m += mask_Q_l*(u.float()-bj.float())
+            m += mask_Q_l*(u.float() + (l==u).float() -bj.float())
             m += mask_Q_u*(-l.float()+bj.float())
 
         loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1) / self.BATCH_SIZE

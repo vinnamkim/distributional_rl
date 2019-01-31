@@ -19,12 +19,12 @@ plt.rcdefaults()
 args = dict()
 args["BUFFER_SIZE"] = int(5000)  # replay buffer size
 args["BATCH_SIZE"] = 50  # minibatch size
-args["GAMMA"] = 0.99  # discount factor
+args["GAMMA"] = 0.999  # discount factor
 args["TAU"] = 1e-1  # for soft update of target parameters #1
 args["LR"] = 1e-3# learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
 args["UPDATE_TARGET"] = 200
-N = 100
+N = 101
 Vmin = -200
 Vmax = 200
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -56,7 +56,7 @@ def run_test(max_t):
             break
     return score_test
 
-def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_start=0.6, eps_end=0.01, eps_decay=0.99):
+def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_start=0.5, eps_end=0, eps_decay=0.99):
     test = False
     scores = []                        # list containing scores from each episode
     scores_tests = []
@@ -100,8 +100,8 @@ def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_st
         if test:
             print(scores_tests)
 
-        if i_episode % 30 == 0 or i_episode == 1:
-            state = torch.from_numpy(np.array([0, 0, 0, 0])).float().unsqueeze(0).to(device)
+        if i_episode % 3 == 0 or i_episode == 1:
+            state = torch.from_numpy(np.array([0,0,0,0])).float().unsqueeze(0).to(device)
             q_distrib, _ = agent.qnetwork_local.forward(state)
             q_distrib =  q_distrib.detach()
             q_distrib = q_distrib.reshape(-1, env.action_space.n, N)[0]
@@ -111,10 +111,18 @@ def distributional_dqn(n_episodes=30000, max_t=1000, test_interval = 100, eps_st
             z = []
             for i in range(env.action_space.n):
                 z.append(q_distrib[i, :].cpu().data.numpy())
-            plt.bar(y, z[0], width=2)
-            plt.bar(y, z[1], width=2)
+
+            fig,ax = plt.subplots(figsize =(20,10))
+            ax.bar(y*10, z[0],width=10,color='b',align='center')
+            ax.bar((y+1)*10, z[1],width=10,color='r',align='center')
+            #plt.bar(y, z[0], width=2)
+            #plt.bar(y, z[1], width=2)
+            ax.set_xticklabels(y*10)
+            abs=np.arange(Vmin, Vmax+1, int((Vmax-Vmin)/10))
+            plt.xticks(abs*10,abs)
+            plt.ylim(0,1)
             plt.title("distribution at step:{}".format(i_episode))
-            plt.show()
+            plt.savefig("./results/figs/fig-{}.png".format(i_episode))
 
         if i_episode % 100 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}, epsilon:{}'.format(i_episode, np.mean(scores_window), eps))
