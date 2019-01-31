@@ -25,7 +25,8 @@ class Distrib_learner():
     def __init__(self, state_size, action_size, N, Vmin, Vmax,  hiddens, args, seed):
         self.state_size = state_size
         self.action_size = action_size
-        self.seed = random.seed(seed)
+        self.seed = seed
+        random.seed(seed)
         self.hiddens = hiddens
         self.BUFFER_SIZE = args["BUFFER_SIZE"]
         self.BATCH_SIZE = args["BATCH_SIZE"]
@@ -68,11 +69,11 @@ class Distrib_learner():
             z_dist = torch.unsqueeze(z_dist, 2).float()
             Q_dist, _  = self.qnetwork_local(state)#
             Q_dist = Q_dist.detach()
-            Q_dist = Q_dist.reshape(-1,  self.action_size, self.N)
+            Q_dist = Q_dist#.reshape(-1,  self.action_size, self.N)
             Q_target = torch.matmul(Q_dist, z_dist).squeeze(1)
             a_star = torch.argmax(Q_target, dim=1)[0]
 
-        if eps != 0:
+        if eps != 0.:
             self.qnetwork_local.train()
 
         if random.random() > eps:
@@ -86,11 +87,11 @@ class Distrib_learner():
         z_dist = torch.unsqueeze(z_dist, 2).float()
 
         _, log_Q_dist_prediction = self.qnetwork_local(states)
-        log_Q_dist_prediction = log_Q_dist_prediction.reshape(-1, self.action_size, self.N)[self.range_batch, actions.squeeze(1), :]
+        log_Q_dist_prediction = log_Q_dist_prediction[self.range_batch, actions.squeeze(1), :]#.reshape(-1, self.action_size, self.N)[self.range_batch, actions.squeeze(1), :]
 
         Q_dist_target, _ = self.qnetwork_target(next_states)
         Q_dist_target = Q_dist_target.detach()
-        Q_dist_target = Q_dist_target.reshape(-1, self.action_size, self.N)
+        Q_dist_target = Q_dist_target#.reshape(-1, self.action_size, self.N)
 
         Q_target = torch.matmul(Q_dist_target, z_dist).squeeze(1)
         a_star = torch.argmax(Q_target, dim=1)
@@ -107,8 +108,7 @@ class Distrib_learner():
             mask_Q_l.scatter_(1, l, Q_dist_star[:,j].unsqueeze(1))
             mask_Q_u = torch.zeros(m.size()).to(device)
             mask_Q_u.scatter_(1, u, Q_dist_star[:,j].unsqueeze(1))
-
-            m += mask_Q_l*(u.float() + (l==u).float() -bj.float())
+            m += mask_Q_l*(u.float() + (l == u).float()-bj.float())
             m += mask_Q_u*(-l.float()+bj.float())
 
         loss = - torch.sum(torch.sum(torch.mul(log_Q_dist_prediction, m),-1),-1) / self.BATCH_SIZE
