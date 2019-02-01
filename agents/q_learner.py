@@ -1,5 +1,3 @@
-##### Code taken from udacity/reinforcement learning
-
 import numpy as np
 import random
 from collections import namedtuple, deque
@@ -47,9 +45,11 @@ class Q_learner():
     def act(self, state, eps=0.):
 
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+
         self.qnetwork_local.eval()
         with torch.no_grad():
             action_values = self.qnetwork_local(state)
+
         self.qnetwork_local.train()
 
         if random.random() > eps:
@@ -68,7 +68,6 @@ class Q_learner():
         loss.backward()
         self.optimizer.step()
 
-        # ------------------- update target network ------------------- #
         self.soft_update(self.qnetwork_local, self.qnetwork_target, self.TAU)
 
     def soft_update(self, local_model, target_model, tau):

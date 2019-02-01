@@ -1,5 +1,3 @@
-##### Code taken from udacity/reinforcement learning
-
 import numpy as np
 import random
 from collections import namedtuple, deque
