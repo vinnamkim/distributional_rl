@@ -15,6 +15,7 @@ from agents.distrib_learner import Distrib_learner
 import matplotlib.pyplot as plt
 from utils.utils import Normalizer
 import os
+import shutil
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -37,7 +38,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 num_seeds = 15
 seeds = [i for i in range(num_seeds)]
 
-def distributional_dqn(agent, n_episodes=200, max_t=1000, test_interval = 1, eps_start=0.5, eps_end=0, eps_decay=0.99):
+def distributional_dqn(agent, n_episodes=1000, max_t=1000, test_interval = 1, eps_start=0.5, eps_end=0, eps_decay=0.99):
 
     test = False
     scores_train = []                        # list containing scores from each episode
@@ -157,7 +158,7 @@ def distributional_dqn(agent, n_episodes=200, max_t=1000, test_interval = 1, eps
 
 for seed in seeds:
     if(os.path.exists("./results/figs/seed-{}/".format(seed))):
-        os.rmdir("./results/figs/seed-{}/".format(seed))
+        shutil.rmtree("./results/figs/seed-{}/".format(seed))
     os.mkdir("./results/figs/seed-{}/".format(seed))
 
     env = gym.make('CartPole-v0')
