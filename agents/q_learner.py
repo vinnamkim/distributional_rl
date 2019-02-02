@@ -59,6 +59,8 @@ class Q_learner():
 
     def learn(self, experiences, gamma):
         states, actions, rewards, next_states, dones = experiences
+        actions = actions.long()
+
         Q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
         Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
         Q_expected = self.qnetwork_local(states).gather(1, actions)
