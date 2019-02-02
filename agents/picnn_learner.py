@@ -30,8 +30,10 @@ class picnn_learner():
         self.BATCH_SIZE = args["BATCH_SIZE"]
         self.GAMMA = args["GAMMA"]
         self.UPDATE_EVERY = args["UPDATE_EVERY"]
+        self.WARM_UP = args["WARM_UP"]
         self.LR = args["LR"]
         self.TAU = args["TAU"]
+        self.grad_norm = args["grad_norm"]
 
         self.qnetwork_local = picnn_network(input_shape = state_size, action_shape = action_size, actions_range = actions_range,  hiddens = hiddens, seed =  seed).to(device)
         self.qnetwork_target = picnn_network(input_shape = state_size, action_shape = action_size, actions_range = actions_range,  hiddens = hiddens, seed =  seed).to(device)
@@ -44,7 +46,7 @@ class picnn_learner():
         self.memory.add(state, action, reward, next_state, done)
         self.t_step = (self.t_step + 1) % self.UPDATE_EVERY
         if self.t_step == 0:
-            if len(self.memory) > self.BATCH_SIZE:
+            if len(self.memory) > self.WARM_UP:
                 experiences = self.memory.sample()
                 self.learn(experiences)
 
@@ -62,18 +64,21 @@ class picnn_learner():
             dx = self.ou_theta * (mu-x) + self.ou_sigma * x.clone().normal_()
             self.noise = x + dx
             a_star += self.noise
+
         return a_star
 
     def learn(self, experiences):
         states, actions, rewards, next_states, dones = experiences
         next_actions = self.qnetwork_local.best_action(next_states)["actions"]
-        max_Q = self.qnetwork_target.forward(observation=next_states, actions=next_actions, entropy=True)["Q"][0][0]
-        targets = rewards + self.GAMMA * max_Q
+        max_Q = self.qnetwork_target.forward(observation=next_states, actions=next_actions, entropy=True)["Q"][0][0].detach()
+        targets = rewards + (1 - dones) * self.GAMMA * max_Q
         predictions = self.qnetwork_local.forward(observation=states, actions=actions, entropy=True)["Q"][0][0]
         loss = torch.mean((targets-predictions)**2)
 
         self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.qnetwork_local.parameters(), self.grad_norm)
+
         self.optimizer.step()
         self.soft_update(self.qnetwork_local, self.qnetwork_target, self.TAU)
 

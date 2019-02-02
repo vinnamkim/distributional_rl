@@ -7,6 +7,7 @@ import numpy as np
 from torch.optim import SGD
 from utils.icnn_utils.utils import proj_newton
 device = th.device("cuda:0" if th.cuda.is_available() else "cpu")
+import time
 
 class HyperLinear(nn.Module):
     """
@@ -237,7 +238,7 @@ class picnn_network(nn.Module):
 
         return {"value": Q_copy, "grad": Q_grad}
 
-    def best_action(self, observation, action_init=None, nIter=20):
+    def best_action(self, observation, action_init=None, nIter=5):
         bsize = observation.size()[0]
 
         if action_init == None:
