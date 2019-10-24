@@ -18,11 +18,16 @@ class QNetwork(nn.Module):
 
         setattr(self, "fc{}".format(len(hiddens)), nn.Linear(self.hiddens[-1], output))
 
-    def forward(self, x):
+    def forward(self, x, zerocenter=False):
         if len(self.hiddens) == 0:
             return self.fc0(x)
         else:
             for i in range(0, len(self.hiddens)):
-                x = F.relu(getattr(self, "fc{}".format(i))(x))
+                x = getattr(self, "fc{}".format(i))(x)
+                if zerocenter == True:
+                    x = x - x.mean(1, keepdims=True)
+                x = F.relu(x)
+                if zerocenter == True:
+                    x = x - x.mean(1, keepdims=True)
             return getattr(self, "fc{}".format(len(self.hiddens)))(x)
 

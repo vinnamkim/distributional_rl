@@ -14,7 +14,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Q_learner():
 
-    def __init__(self, state_size, action_size, hiddens, args, seed):
+    def __init__(self, state_size, action_size, hiddens, args, seed, zerocenter):
         self.state_size = state_size
         self.action_size = action_size
         self.seed = random.seed(seed)
@@ -25,6 +25,7 @@ class Q_learner():
         self.UPDATE_EVERY = args["UPDATE_EVERY"]
         self.LR = args["LR"]
         self.TAU = args["TAU"]
+        self.zerocenter = zerocenter
 
 
         self.qnetwork_local = QNetwork(state_size, action_size, hiddens, seed).to(device)

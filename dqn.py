@@ -23,18 +23,15 @@ args["TAU"] = 1e-3  # for soft update of target parameters
 args["LR"] = 1e-3  # learning rate
 args["UPDATE_EVERY"] = 4  # how often to update the network
 
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 seed = 0
 env = gym.make('CartPole-v1')
 env.seed(seed)
-agent = Q_learner(state_size=env.observation_space.shape[0], action_size= env.action_space.n, seed=seed, hiddens = [24,24], args = args)
-
 
 # In[32]:
 
 
-def dqn(n_episodes=100000, max_t=1000, eps_start=1, eps_end=0.01, eps_decay=0.995):
+def dqn(agent, n_episodes=100000, max_t=1000, eps_start=1, eps_end=0.01, eps_decay=0.995):
 
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
@@ -58,22 +55,32 @@ def dqn(n_episodes=100000, max_t=1000, eps_start=1, eps_end=0.01, eps_decay=0.99
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
 
         if i_episode % 100 == 0:
-
-
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
         if np.mean(scores_window)>=200.0:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
             torch.save(agent.qnetwork_local.state_dict(), 'models/checkpoints/checkpoint.pth')
-            break
+            # break
     return scores
 
-scores = dqn()
+results = {
+    'ON' : [],
+    'OFF' : []
+}
 
-# plot the scores
-fig = plt.figure()
-ax = fig.add_subplot(111)
-plt.plot(np.arange(len(scores)), scores)
-plt.ylabel('Score')
-plt.xlabel('Episode #')
-plt.show()
+for i in range(10):
+    agent = Q_learner(
+        state_size=env.observation_space.shape[0], action_size= env.action_space.n,
+        seed=seed + i, hiddens = [24,24,24,24], args = args, zerocenter=True)
+    scores = dqn(agent, n_episodes=5000)
+    results['ON'].append(scores)
+
+for i in range(10):
+    agent = Q_learner(
+        state_size=env.observation_space.shape[0], action_size= env.action_space.n,
+        seed=seed + i, hiddens = [24,24,24,24], args = args, zerocenter=False)
+    scores = dqn(agent, n_episodes=5000)
+    results['OFF'].append(scores)
+
+import torch
+torch.save(results, 'results.stats')
 

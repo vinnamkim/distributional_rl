@@ -30,7 +30,6 @@ class Distrib_learner():
         self.BATCH_SIZE = args["BATCH_SIZE"]
         self.GAMMA = args["GAMMA"]
         self.UPDATE_EVERY = args["UPDATE_EVERY"]
-        self.UPDATE_TARGET = args["UPDATE_TARGET"]
 
         self.LR = args["LR"]
         self.TAU = args["TAU"]
@@ -55,10 +54,10 @@ class Distrib_learner():
         if self.t_step == 0:
             if len(self.memory) > self.BATCH_SIZE:
                 experiences = self.memory.sample()
-                self.learn(experiences, self.GAMMA)
+                self.learn(experiences)
 
     def act(self, state, eps=0.):
-        state = torch.from_numpy(state).float().unsqueeze(0).to(device)[0][0]
+        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         self.qnetwork_local.eval()
         with torch.no_grad():
             z_dist = torch.from_numpy(
